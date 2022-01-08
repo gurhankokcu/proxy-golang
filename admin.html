@@ -1,0 +1,551 @@
+{{template "layout" .}}
+
+{{define "head"}}
+<style>
+    html {
+        overflow-y: scroll;
+    }
+
+    table.table-fit>:not(:first-child) {
+        border-top: 0 !important;
+    }
+
+    table.table-fit>:last-child td {
+        border-bottom-width: 0 !important;
+    }
+
+    .col-title {
+        flex: 0 0 auto;
+        border-bottom: 1px solid #212529 !important;
+        border-right: 0 !important;
+    }
+
+    .col-events {
+        flex: 0 0 auto;
+    }
+
+    .col-events>pre {
+        background-color: #f1f2f3;
+        border-radius: .5em;
+        margin: .5em;
+        padding: 1em;
+    }
+
+    .col-client {
+        max-width: 17vw;
+        overflow: hidden;
+    }
+
+    .text-connection-status {
+        font-size: 1.3rem;
+    }
+
+    #events {
+        font-size: .75em;
+    }
+
+    .bi-toggle-off,
+    .bi-toggle-on {
+        position: relative;
+        top: .09em;
+    }
+
+    button[aria-expanded=true] .bi-toggle-off {
+        display: none;
+    }
+
+    button[aria-expanded=false] .bi-toggle-on {
+        display: none;
+    }
+
+    /* Small devices (landscape phones, 576px and up) */
+    @media (min-width: 576px) {}
+
+    /* Medium devices (tablets, 768px and up) */
+    @media (min-width: 768px) {
+        .col-title {
+            width: 15%;
+            border-bottom: 0 !important;
+            border-right: 1px solid #212529 !important;
+        }
+
+        .col-events {
+            width: 83%;
+        }
+    }
+
+    /* Large devices (desktops, 992px and up) */
+    @media (min-width: 992px) {
+        .col-title {
+            width: 12%;
+        }
+
+        .col-events {
+            width: 86%;
+        }
+
+        .col-client {
+            max-width: unset;
+            overflow: unset;
+        }
+    }
+
+    /* X-Large devices (large desktops, 1200px and up) */
+    @media (min-width: 1200px) {
+        .col-title {
+            width: 10%;
+        }
+
+        .col-events {
+            width: 88%;
+        }
+    }
+
+    /* XX-Large devices (larger desktops, 1400px and up) */
+    @media (min-width: 1400px) {}
+</style>
+<script>
+    var newAdminPort = null
+    function reloadPage() {
+        location.reload()
+    }
+    function showError(error) {
+        alert(error.responseText)
+    }
+    function updateServer(serverHost, serverPort, serverSecret) {
+        if (!confirm('Are you sure you want to change server data? This operation will disconnect all connections.')) {
+            return
+        }
+        $.ajax({
+            type: 'put',
+            url: '/admin/server/',
+            contentType: "application/json",
+            data: JSON.stringify({ serverHost, serverPort, serverSecret }),
+            success: reloadPage,
+            error: showError
+        })
+    }
+    function updateAdmin(adminPort, adminUser, adminPass) {
+        if (!confirm('Are you sure you want to change admin data? This operation will restart the application.')) {
+            return
+        }
+        $.ajax({
+            type: 'put',
+            url: '/admin/admin/',
+            contentType: "application/json",
+            data: JSON.stringify({ adminPort, adminUser, adminPass }),
+            success: function () {
+                newAdminPort = adminPort
+                $('#adminUpdatedModal').modal('show')
+                var remainingSeconds = 10
+                setInterval(function () {
+                    $('#adminUpdatedCountdown').text(--remainingSeconds)
+                    if (remainingSeconds === 0) {
+                        location.href = window.location.protocol + '//' + window.location.hostname + ':' + newAdminPort + window.location.pathname
+                    }
+                }, 1000)
+            },
+            error: showError
+        })
+    }
+    function addTcpPort(port) {
+        $.ajax({
+            type: 'post',
+            url: '/admin/tcpports/',
+            contentType: "text/plain",
+            data: port,
+            success: reloadPage,
+            error: showError
+        })
+    }
+    function deleteTcpPort(port) {
+        $.ajax({
+            type: 'delete',
+            url: '/admin/tcpports/' + port,
+            success: reloadPage,
+            error: showError
+        })
+    }
+    function addUdpPort(port) {
+        $.ajax({
+            type: 'post',
+            url: '/admin/udpports/',
+            contentType: "text/plain",
+            data: port,
+            success: reloadPage,
+            error: showError
+        })
+    }
+    function deleteUdpPort(port) {
+        $.ajax({
+            type: 'delete',
+            url: '/admin/udpports/' + port,
+            success: reloadPage,
+            error: showError
+        })
+    }
+    function reconnect() {
+        $.ajax({
+            type: 'get',
+            url: '/admin/reconnect/',
+            success: reloadPage,
+            error: showError
+        })
+    }
+    function requestPorts() {
+        $('#requestPortsButton').hide()
+        $.ajax({
+            type: 'get',
+            url: '/admin/requestports/',
+            success: function () {
+                $('#requestPortsButton').show()
+            },
+            error: showError
+        })
+    }
+    function listenEvents() {
+        var lastResponseIndex = 0
+        var xhr = new XMLHttpRequest()
+        xhr.open('get', '/admin/events/', true)
+        xhr.onprogress = function () {
+            var response = xhr.responseText.substr(lastResponseIndex)
+            lastResponseIndex = xhr.responseText.length
+            var events = response.split('\r\n')
+            events.forEach(function (event) {
+                if (event.length > 0) {
+                    $('#events').append('> ' + event + '\r\n')
+                    processEvent(event)
+                }
+            })
+        }
+        xhr.onerror = function () {
+            if (newAdminPort === null) {
+                $('#disconnectedModal').modal('show')
+            }
+        }
+        xhr.send()
+    }
+    function processEvent(event) {
+        if (event.startsWith('Server connection started | ') || event.startsWith('Client connection accepted | ')) {
+            $('#connectionStatusConnected').show()
+            $('#connectionStatusDisconnected').hide()
+            $('#requestPortsButton').show()
+            var startIndex = event.indexOf(' | ')
+            var endIndex = event.indexOf('(tcp)')
+            $('#connectionAddress').text(event.substring(startIndex + 3, endIndex - 1))
+        }
+        if (event.startsWith('Server connection ended | ') || event.startsWith('Client connection ended | ')) {
+            $('#connectionStatusConnected').hide()
+            $('#connectionStatusDisconnected').show()
+            $('#requestPortsButton').hide()
+            $('#connectionAddress').text('')
+        }
+        var clientTcpPortsPrefix = 'Message received from client | tcpports='
+        if (event.startsWith(clientTcpPortsPrefix)) {
+            var parts = event.split(' | ')
+            if (parts.length < 3) {
+                return
+            }
+            var tcpPorts = parts[1].substr(9).split(',')
+            console.log(tcpPorts)
+        }
+    }
+    $(function () {
+        listenEvents()
+    })
+</script>
+{{end}}
+
+{{define "navbar"}}
+<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+    <span class="navbar-toggler-icon"></span>
+</button>
+<div class="collapse navbar-collapse" id="navbarNav">
+    <ul class="navbar-nav">
+        <li class="nav-item">
+            <button type="button" class="btn" data-bs-toggle="collapse" data-bs-target="#sectionServer"
+                aria-expanded="false" aria-controls="sectionServer">
+                server <i class="bi bi-toggle-off"></i><i class="bi bi-toggle-on"></i>
+            </button>
+        </li>
+        <li class="nav-item">
+            <button type="button" class="btn" data-bs-toggle="collapse" data-bs-target="#sectionAdmin"
+                aria-expanded="false" aria-controls="sectionAdmin">
+                admin <i class="bi bi-toggle-off"></i><i class="bi bi-toggle-on"></i>
+            </button>
+        </li>
+        <li class="nav-item">
+            <button type="button" class="btn" data-bs-toggle="collapse" data-bs-target="#sectionTcpPorts"
+                aria-expanded="false" aria-controls="sectionTcpPorts">
+                tcp ports <i class="bi bi-toggle-off"></i><i class="bi bi-toggle-on"></i>
+            </button>
+        </li>
+        <li class="nav-item">
+            <button type="button" class="btn" data-bs-toggle="collapse" data-bs-target="#sectionUdpPorts"
+                aria-expanded="false" aria-controls="sectionUdpPorts">
+                udp ports <i class="bi bi-toggle-off"></i><i class="bi bi-toggle-on"></i>
+            </button>
+        </li>
+        <li class="nav-item">
+            <button type="button" class="btn" data-bs-toggle="collapse" data-bs-target="#sectionConnection"
+                aria-expanded="true" aria-controls="sectionConnection">
+                connection <i class="bi bi-toggle-off"></i><i class="bi bi-toggle-on"></i>
+            </button>
+        </li>
+        <li class="nav-item">
+            <button type="button" class="btn" data-bs-toggle="collapse" data-bs-target="#sectionConnections"
+                aria-expanded="true" aria-controls="sectionConnections">
+                connections <i class="bi bi-toggle-off"></i><i class="bi bi-toggle-on"></i>
+            </button>
+        </li>
+        <li class="nav-item">
+            <button type="button" class="btn" data-bs-toggle="collapse" data-bs-target="#sectionEvents"
+                aria-expanded="true" aria-controls="sectionEvents">
+                events <i class="bi bi-toggle-off"></i><i class="bi bi-toggle-on"></i>
+            </button>
+        </li>
+    </ul>
+</div>
+{{end}}
+
+{{define "content"}}
+<div class="row collapse" id="sectionServer"><br /></div>
+<div class="row collapse" id="sectionServer">
+    <div class="col-title py-2">
+        server
+    </div>
+    <div class="col-auto">
+        <table class="table table-hover table-fit">
+            <tbody>
+                {{if .ShowServerHost}}
+                <tr>
+                    <td class="align-middle">host</td>
+                    <td><input type="text" id="serverHost" name="serverHost" placeholder="{{.ServerHost}}"
+                            class="form-control form-control-sm" value="{{.ServerHost}}"></td>
+                </tr>
+                {{end}}
+                <tr>
+                    <td class="align-middle">port</td>
+                    <td><input type="text" id="serverPort" name="serverPort" placeholder="{{.ServerPort}}"
+                            class="form-control form-control-sm" value="{{.ServerPort}}"></td>
+                </tr>
+                <tr>
+                    <td class="align-middle">secret</td>
+                    <td><input type="text" id="serverSecret" name="serverSecret" placeholder="{{.ServerSecret}}"
+                            class="form-control form-control-sm" value="{{.ServerSecret}}"></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td><button type="button" class="btn btn-sm btn-primary"
+                            onclick="updateServer($('#serverHost').val(), parseInt($('#serverPort').val()), $('#serverSecret').val())"><i
+                                class="bi bi-save"></i></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="row collapse" id="sectionAdmin"><br /></div>
+<div class="row collapse" id="sectionAdmin">
+    <div class="col-title py-2">
+        admin
+    </div>
+    <div class="col-auto">
+        <table class="table table-hover table-fit">
+            <tbody>
+                <tr>
+                    <td class="align-middle">port</td>
+                    <td><input type="text" id="adminPort" name="adminPort" placeholder="{{.AdminPort}}"
+                            class="form-control form-control-sm" value="{{.AdminPort}}"></td>
+                </tr>
+                <tr>
+                    <td class="align-middle">user</td>
+                    <td><input type="text" id="adminUser" name="adminUser" placeholder="{{.AdminUser}}"
+                            class="form-control form-control-sm" value="{{.AdminUser}}"></td>
+                </tr>
+                <tr>
+                    <td class="align-middle">pass</td>
+                    <td><input type="text" id="adminPass" name="adminPass" placeholder="{{.AdminPass}}"
+                            class="form-control form-control-sm" value="{{.AdminPass}}"></td>
+                </tr>
+                <tr>
+                    <td></td>
+                    <td><button type="button" class="btn btn-sm btn-primary"
+                            onclick="updateAdmin(parseInt($('#adminPort').val()), $('#adminUser').val(), $('#adminPass').val())"><i
+                                class="bi bi-save"></i></button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="row collapse" id="sectionTcpPorts"><br /></div>
+<div class="row collapse" id="sectionTcpPorts">
+    <div class="col-title py-2">
+        tcp ports
+    </div>
+    <div class="col-auto">
+        <table class="table table-hover table-fit">
+            <tbody>
+                {{range .TcpPorts}}
+                <tr>
+                    <td class="align-middle">{{.}}</td>
+                    <td><button type="button" class="btn btn-sm btn-danger" onclick="deleteTcpPort('{{.}}')"><i
+                                class="bi bi-trash"></i></button>
+                    </td>
+                </tr>
+                {{end}}
+                {{range .PotentialTcpPorts}}
+                <tr>
+                    <td><input class="form-control form-control-sm" type="text" id="tcpport-{{.}}" name="tcpport-{{.}}"
+                            placeholder="{{.}}" value="{{.}}"></td>
+                    <td><button type="button" class="btn btn-sm btn-primary"
+                            onclick="addTcpPort($('#tcpport-{{.}}').val())"><i class="bi bi-plus-lg"></i></button>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td><input class="form-control form-control-sm" type="text" id="tcpport" name="tcpport"
+                            placeholder="port"></td>
+                    <td><button type="button" class="btn btn-sm btn-primary"
+                            onclick="addTcpPort($('#tcpport').val())"><i class="bi bi-plus-lg"></i></button>
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+<div class="row collapse" id="sectionUdpPorts"><br /></div>
+<div class="row collapse" id="sectionUdpPorts">
+    <div class="col-title py-2">
+        udp ports
+    </div>
+    <div class="col-auto">
+        <table class="table table-hover table-fit">
+            <tbody>
+                {{range .UdpPorts}}
+                <tr>
+                    <td class="align-middle">{{.}}</td>
+                    <td><button type="button" class="btn btn-sm btn-danger" onclick="deleteUdpPort('{{.}}')"><i
+                                class="bi bi-trash"></i></button>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td><input class="form-control form-control-sm" type="text" id="udpport" name="udpport"
+                            placeholder="port"></td>
+                    <td><button type="button" class="btn btn-sm btn-primary"
+                            onclick="addUdpPort($('#udpport').val())"><i class="bi bi-plus-lg"></i></button>
+                    </td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+<div class="row show" id="sectionConnection"><br /></div>
+<div class="row show" id="sectionConnection">
+    <div class="col-title py-2">
+        connection
+    </div>
+    <div class="col-auto">
+        <table class="table table-hover table-fit">
+            <tbody>
+                <tr>
+                    <td class="align-middle text-center">
+                        <i {{if .IsConnected}}style="display: inline;" {{else}}style="display: none;" {{end}}
+                            id="connectionStatusConnected"
+                            class="bi bi-check2-circle text-success text-connection-status"></i>
+                        <i {{if .IsConnected}}style="display: none;" {{else}}style="display: inline;" {{end}}
+                            id="connectionStatusDisconnected"
+                            class="bi bi-exclamation-circle text-danger text-connection-status"></i>
+                    </td>
+                    <td class="align-middle" id="connectionAddress">{{.ConnectionAddr}}</td>
+                    {{if .ShowReconnectButton}}
+                    <td class="align-middle">
+                        <button type="button" class="btn btn-sm btn-warning"
+                            onclick="reconnect()"><i class="bi bi-bootstrap-reboot"></i></button>
+                    </td>
+                    {{end}}
+                    {{if .ShowRequestPortsButton}}
+                    <td class="align-middle">
+                        <button id="requestPortsButton" type="button" class="btn btn-sm btn-primary"
+                            {{if .IsConnected}}style="display: inline;" {{else}}style="display: none;" {{end}}
+                            onclick="requestPorts()"><i class="bi bi-bootstrap-reboot"></i></button>
+                    </td>
+                    {{end}}
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="row show" id="sectionConnections"><br /></div>
+<div class="row show" id="sectionConnections">
+    <div class="col-title py-2">
+        connections
+    </div>
+    <div class="col-auto">
+        <table class="table table-hover table-fit">
+            <thead>
+                <tr>
+                    <th>from</th>
+                    <th>to</th>
+                    <th>port</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>from</td>
+                    <td>to</td>
+                    <td>port</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<div class="row show" id="sectionEvents"><br /></div>
+<div class="row show" id="sectionEvents">
+    <div class="col-title py-2">
+        events
+    </div>
+    <div class="col-events">
+        <pre id="events"></pre>
+    </div>
+</div>
+<div class="row"><br /></div>
+<div class="modal fade" id="disconnectedModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-body text-center">
+                <i class="bi bi-exclamation-triangle text-danger" style="font-size: 5rem;"></i>
+                <br />
+                <p class="fs-4">Connection interrupted!</p>
+                <br />
+                <button type="button" class="btn btn-sm btn-primary" onclick="location.reload()">Reload
+                    Page</button>
+                <br /><br />
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="adminUpdatedModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-body text-center">
+                <i class="bi bi-exclamation-triangle text-warning" style="font-size: 5rem;"></i>
+                <br />
+                <p class="fs-4">Admin data updated!</p>
+                <br />
+                <p class="fs-5">Reloading in <strong id="adminUpdatedCountdown">10</strong> seconds.</p>
+                <br />
+            </div>
+        </div>
+    </div>
+</div>
+{{end}}

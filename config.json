@@ -1,0 +1,11 @@
+{
+    "appType": "server",
+    "serverHost": "127.0.0.1",
+    "serverPort": 9878,
+    "serverSecret": "fpllngzieyoh43e8",
+    "adminPort": 86,
+    "adminUser": "admin",
+    "adminPass": "pass1word2",
+    "tcpPorts": [],
+    "udpPorts": []
+}
