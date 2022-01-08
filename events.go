@@ -93,3 +93,13 @@ func eventMessageReceivedFromServer(conn net.Conn, message string) {
 func eventMessageSentToServer(conn net.Conn, message string) {
 	NewEvent("Message sent to server").append(message).to(conn).broadcast()
 }
+
+// Proxy events
+
+func eventProxyConnectionStarted(src, dest net.Conn) {
+	NewEvent("Proxy connection started").from(src).to(dest).broadcast()
+}
+
+func eventProxyConnectionEnded(src, dest net.Conn) {
+	NewEvent("Proxy connection ended").from(src).to(dest).broadcast()
+}
