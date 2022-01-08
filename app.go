@@ -20,12 +20,11 @@ type App struct {
 	TcpPorts     []int  `json:"tcpPorts"`
 	UdpPorts     []int  `json:"udpPorts"`
 
-	ip             string
-	adminListeners []http.ResponseWriter
-
+	ip                string
+	potentialTcpPorts []int
+	adminListeners    []http.ResponseWriter
 	mainListener      net.Listener
 	mainConnection    net.Conn
-	potentialTcpPorts []int
 	userTcpListeners  map[string]*UserTcpListener
 }
 

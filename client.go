@@ -75,12 +75,12 @@ func processServerMessageTcpPorts(message string) {
 }
 
 func processServerMessageConnect(message string) {
-	if connection := getConnectionFromMessage(message); connection != nil {
-		local, err := net.Dial(connection.network, "127.0.0.1:"+strconv.Itoa(connection.localPort))
+	if network, localPort, proxyPort, ok := getConnectionFromMessage(message); ok {
+		local, err := net.Dial(network, "127.0.0.1:"+strconv.Itoa(localPort))
 		if err != nil {
 			logError(err)
 		}
-		proxy, err := net.Dial(connection.network, app.ServerHost+":"+strconv.Itoa(connection.proxyPort))
+		proxy, err := net.Dial(network, app.ServerHost+":"+strconv.Itoa(proxyPort))
 		if err != nil {
 			logError(err)
 		}

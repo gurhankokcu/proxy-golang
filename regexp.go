@@ -69,30 +69,24 @@ func getTcpPortsFromMessage(message string) string {
 	return findRegexp(regexpMessageTcpPorts, message)
 }
 
-type ConnectionRequest struct {
-	network   string
-	localPort int
-	proxyPort int
-}
-
-func getConnectionFromMessage(message string) *ConnectionRequest {
+func getConnectionFromMessage(message string) (string, int, int, bool) {
 	m := regexp.MustCompile(regexpMessageConnection).FindStringSubmatch(message)
 	if m == nil || len(m) < 4 {
-		return nil
+		return "", 0, 0, false
 	}
 	network := m[1]
 	if !checkNetwork(network) {
-		return nil
+		return "", 0, 0, false
 	}
 	localPort, err := strconv.Atoi(m[2])
 	if err != nil || !checkPort(localPort) {
-		return nil
+		return "", 0, 0, false
 	}
 	proxyPort, err := strconv.Atoi(m[3])
 	if err != nil || !checkPort(proxyPort) {
-		return nil
+		return "", 0, 0, false
 	}
-	return &ConnectionRequest{network: network, localPort: localPort, proxyPort: proxyPort}
+	return network, localPort, proxyPort, true
 }
 
 func getTcpPortFromPath(path string) string {
