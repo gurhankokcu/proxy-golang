@@ -56,6 +56,13 @@ func (a *App) ShowRequestPortsButton() bool {
 }
 
 func (a *App) PotentialTcpPorts() []int {
+	ports := []int{}
+	for _, port := range a.potentialTcpPorts {
+		if indexOfItemInIntSlice(&a.TcpPorts, port) == -1 {
+			ports = append(ports, port)
+		}
+	}
+	a.potentialTcpPorts = ports
 	return a.potentialTcpPorts
 }
 
