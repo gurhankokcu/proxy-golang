@@ -10,8 +10,10 @@ func main() {
 	switch app.AppType {
 	case "server":
 		go openMainListener()
+		go openUserListeners()
 	case "client":
 		go openMainConnection()
+		go reloadOpenTcpPorts()
 	}
 	startWebServer()
 }

@@ -62,6 +62,7 @@ func readConfig() bool {
 	app.UdpPorts = getIntSliceValue(appFlags.UdpPorts, appConfig.UdpPorts, appDefault.UdpPorts, checkPort)
 
 	app.ip = getPublicIP()
+	app.userTcpListeners = make(map[string]*UserTcpListener)
 
 	return true
 }

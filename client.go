@@ -42,15 +42,14 @@ func sendServerSecret() {
 }
 
 func sendTcpPorts() {
-	reloadOpenTcpPorts()
-	s, _ := json.Marshal(app.potentialTcpPorts)
+	s, _ := json.Marshal(app.TcpPorts)
 	sendMessageToServer("tcpports=" + strings.Trim(string(s), "[]"))
 }
 
 func reloadOpenTcpPorts() {
 	app.potentialTcpPorts = []int{}
 	for i := 1; i < 65536; i++ {
-		if isTcpPortOpen(i) {
+		if isTcpPortOpen(i) && indexOfItemInIntSlice(&app.TcpPorts, i) == -1 {
 			app.potentialTcpPorts = append(app.potentialTcpPorts, i)
 		}
 	}
@@ -61,6 +60,7 @@ func readFromMainConnection() {
 		if message, ok := readMessage(app.mainConnection); ok {
 			eventMessageReceivedFromServer(app.mainConnection, message)
 			processServerMessageTcpPorts(message)
+			processServerMessageConnect(message)
 		} else {
 			closeMainConnection()
 			break
@@ -71,5 +71,20 @@ func readFromMainConnection() {
 func processServerMessageTcpPorts(message string) {
 	if message == "tcpports" {
 		sendTcpPorts()
+	}
+}
+
+func processServerMessageConnect(message string) {
+	if connection := getConnectionFromMessage(message); connection != nil {
+		local, err := net.Dial(connection.network, "127.0.0.1:"+strconv.Itoa(connection.localPort))
+		if err != nil {
+			logError(err)
+		}
+		proxy, err := net.Dial(connection.network, app.ServerHost+":"+strconv.Itoa(connection.proxyPort))
+		if err != nil {
+			logError(err)
+		}
+		go copyIO(local, proxy)
+		go copyIO(proxy, local)
 	}
 }

@@ -136,7 +136,7 @@ func handleAdminAdmin(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func handleAdminPortsFunc(getPort func(string) string, addPort, removePort func(int) bool) func(http.ResponseWriter, *http.Request) {
+func handleAdminPortsFunc(getPort func(string) string, addPort, openListener, removePort, closeListener func(int) bool) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if !basicAuth(w, req) {
 			return
@@ -159,6 +159,14 @@ func handleAdminPortsFunc(getPort func(string) string, addPort, removePort func(
 				errResponse(w, "Invalid or duplicate port "+strconv.Itoa(port))
 				return
 			}
+			if app.AppType == "server" && !openListener(port) {
+				removePort(port)
+				errResponse(w, "Cannot start listening on port "+strconv.Itoa(port))
+				return
+			}
+			if app.AppType == "client" {
+				go reloadOpenTcpPorts()
+			}
 			okResponse(w)
 		case http.MethodDelete:
 			port, err := strconv.Atoi(getPort(req.URL.Path))
@@ -170,17 +178,25 @@ func handleAdminPortsFunc(getPort func(string) string, addPort, removePort func(
 				errResponse(w, "Port "+strconv.Itoa(port)+" not found")
 				return
 			}
+			if app.AppType == "server" && !closeListener(port) {
+				addPort(port)
+				errResponse(w, "Cannot stop listening on port "+strconv.Itoa(port))
+				return
+			}
+			if app.AppType == "client" {
+				go reloadOpenTcpPorts()
+			}
 			okResponse(w)
 		}
 	}
 }
 
 func handleAdminTcpPorts(w http.ResponseWriter, req *http.Request) {
-	handleAdminPortsFunc(getTcpPortFromPath, addTcpPort, removeTcpPort)(w, req)
+	handleAdminPortsFunc(getTcpPortFromPath, addTcpPort, openUserTcpListener, removeTcpPort, closeUserTcpListener)(w, req)
 }
 
 func handleAdminUdpPorts(w http.ResponseWriter, req *http.Request) {
-	handleAdminPortsFunc(getUdpPortFromPath, addUdpPort, removeUdpPort)(w, req)
+	handleAdminPortsFunc(getUdpPortFromPath, addUdpPort, openUserUdpListener, removeUdpPort, closeUserUdpListener)(w, req)
 }
 
 func handleAdminReconnect(w http.ResponseWriter, req *http.Request) {
@@ -207,7 +223,7 @@ func handleAdminRequestPorts(w http.ResponseWriter, req *http.Request) {
 	case http.MethodGet:
 		switch app.AppType {
 		case "server":
-			requestOpenTcpPorts()
+			requestClientTcpPorts()
 		case "client":
 		}
 		okResponse(w)

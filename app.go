@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"io"
 	"net"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type App struct {
@@ -24,6 +26,18 @@ type App struct {
 	mainListener      net.Listener
 	mainConnection    net.Conn
 	potentialTcpPorts []int
+	userTcpListeners  map[string]*UserTcpListener
+}
+
+type UserTcpListener struct {
+	listener    net.Listener
+	connections []*UserTcpConnection
+}
+
+type UserTcpConnection struct {
+	connection       net.Conn
+	clientListener   net.Listener
+	clientConnection net.Conn
 }
 
 func (a *App) Title() string {
@@ -77,5 +91,12 @@ func sendMessage(message string, eventFunc func(net.Conn, string)) {
 	if app.mainConnection != nil {
 		app.mainConnection.Write([]byte(message))
 		eventFunc(app.mainConnection, message)
+		time.Sleep(100 * time.Millisecond)
 	}
+}
+
+func copyIO(src, dest net.Conn) {
+	defer src.Close()
+	defer dest.Close()
+	io.Copy(src, dest)
 }
