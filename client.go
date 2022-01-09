@@ -49,7 +49,7 @@ func sendTcpPorts() {
 func reloadOpenTcpPorts() {
 	app.potentialTcpPorts = []int{}
 	for i := 1; i < 65536; i++ {
-		if isTcpPortOpen(i) && indexOfItemInIntSlice(&app.TcpPorts, i) == -1 {
+		if isTcpPortOpen(i) {
 			app.potentialTcpPorts = append(app.potentialTcpPorts, i)
 		}
 	}
@@ -86,5 +86,6 @@ func processServerMessageConnect(message string) {
 		}
 		go copyIO(local, proxy)
 		go copyIO(proxy, local)
+		eventProxyConnection(local, proxy)
 	}
 }

@@ -107,7 +107,9 @@
 <script>
     var newAdminPort = null
     function reloadPage() {
-        location.reload()
+        setTimeout(function () {
+            location.reload()
+        }, 100)
     }
     function showError(error) {
         alert(error.responseText)
@@ -188,17 +190,17 @@
         $.ajax({
             type: 'get',
             url: '/admin/reconnect/',
-            success: reloadPage,
+            // success: reloadPage,
             error: showError
         })
     }
     function requestPorts() {
-        $('#requestPortsButton').hide()
+        $('#requestPortsButton').addClass('disabled')
         $.ajax({
             type: 'get',
             url: '/admin/requestports/',
             success: function () {
-                $('#requestPortsButton').show()
+                $('#requestPortsButton').removeClass('disabled')
             },
             error: showError
         })
@@ -291,12 +293,6 @@
             <button type="button" class="btn" data-bs-toggle="collapse" data-bs-target="#sectionConnection"
                 aria-expanded="true" aria-controls="sectionConnection">
                 connection <i class="bi bi-toggle-off"></i><i class="bi bi-toggle-on"></i>
-            </button>
-        </li>
-        <li class="nav-item">
-            <button type="button" class="btn" data-bs-toggle="collapse" data-bs-target="#sectionConnections"
-                aria-expanded="true" aria-controls="sectionConnections">
-                connections <i class="bi bi-toggle-off"></i><i class="bi bi-toggle-on"></i>
             </button>
         </li>
         <li class="nav-item">
@@ -478,30 +474,6 @@
                             onclick="requestPorts()"><i class="bi bi-bootstrap-reboot"></i></button>
                     </td>
                     {{end}}
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</div>
-<div class="row show" id="sectionConnections"><br /></div>
-<div class="row show" id="sectionConnections">
-    <div class="col-title py-2">
-        connections
-    </div>
-    <div class="col-auto">
-        <table class="table table-hover table-fit">
-            <thead>
-                <tr>
-                    <th>from</th>
-                    <th>to</th>
-                    <th>port</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>from</td>
-                    <td>to</td>
-                    <td>port</td>
                 </tr>
             </tbody>
         </table>

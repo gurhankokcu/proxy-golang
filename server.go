@@ -128,7 +128,7 @@ func processClientMessageTcpPorts(conn net.Conn, message string) {
 		portsString := strings.Split(tcpPorts, ",")
 		for _, portString := range portsString {
 			port, err := strconv.Atoi(portString)
-			if err == nil && checkPort(port) && indexOfItemInIntSlice(&app.TcpPorts, port) == -1 {
+			if err == nil && checkPort(port) {
 				app.potentialTcpPorts = append(app.potentialTcpPorts, port)
 			}
 		}
@@ -203,6 +203,7 @@ func listenClientTcpConnections(userTcpConnection *UserTcpConnection) {
 			userTcpConnection.clientConnection = conn
 			go copyIO(userTcpConnection.connection, userTcpConnection.clientConnection)
 			go copyIO(userTcpConnection.clientConnection, userTcpConnection.connection)
+			eventProxyConnection(userTcpConnection.connection, userTcpConnection.clientConnection)
 		} else {
 			break
 		}

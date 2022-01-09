@@ -104,7 +104,5 @@ func sendMessage(message string, eventFunc func(net.Conn, string)) {
 func copyIO(src, dest net.Conn) {
 	defer src.Close()
 	defer dest.Close()
-	defer eventProxyConnectionEnded(src, dest)
-	eventProxyConnectionStarted(src, dest)
 	io.Copy(src, dest)
 }
