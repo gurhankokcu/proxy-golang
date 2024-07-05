@@ -20,6 +20,7 @@ func startWebServer() {
 	http.HandleFunc("/admin/requestports/", handleAdminRequestPorts)
 	http.HandleFunc("/admin/events/", handleAdminEvents)
 	http.HandleFunc("/admin/", handleAdmin)
+	http.HandleFunc("/", handleMain)
 	http.ListenAndServe(":"+strconv.Itoa(app.AdminPort), nil)
 }
 
@@ -50,6 +51,11 @@ func eventResponse(w http.ResponseWriter, text string) {
 		w.Write([]byte(text + "\r\n"))
 		f.Flush()
 	}
+}
+
+func handleMain(w http.ResponseWriter, req *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("It works!"))
 }
 
 func handleAdmin(w http.ResponseWriter, req *http.Request) {
