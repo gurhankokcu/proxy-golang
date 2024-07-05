@@ -26,7 +26,7 @@ Run build.sh to create executables for Linux and Mac
 ```bash
 $ cd proxy-golang
 $ chmod u+x build.sh
-$ build.sh
+$ ./build.sh
 ```
 
 Executable file, configuration file and html files can be found by the platform (linux/mac) in the `bin` folder.
