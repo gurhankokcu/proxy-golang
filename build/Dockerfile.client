@@ -1,0 +1,12 @@
+FROM alpine:latest
+
+ARG ADMIN_PORT
+
+WORKDIR /app
+
+COPY ../bin/linux .
+COPY ../bin/linux/config-client.json ./config.json
+
+EXPOSE $ADMIN_PORT
+
+CMD ["./proxy"]

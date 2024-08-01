@@ -4,7 +4,8 @@ ARG ADMIN_PORT
 
 WORKDIR /app
 
-COPY ./bin/linux .
+COPY ../bin/linux .
+COPY ../bin/linux/config-server.json ./config.json
 
 EXPOSE $ADMIN_PORT
 

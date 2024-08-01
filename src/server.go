@@ -201,9 +201,9 @@ func listenClientTcpConnections(userTcpConnection *UserTcpConnection) {
 	for {
 		if conn, ok := acceptConnFromListener(userTcpConnection.clientListener); ok {
 			userTcpConnection.clientConnection = conn
+			eventProxyConnection(userTcpConnection.connection, userTcpConnection.clientConnection)
 			go copyIO(userTcpConnection.connection, userTcpConnection.clientConnection)
 			go copyIO(userTcpConnection.clientConnection, userTcpConnection.connection)
-			eventProxyConnection(userTcpConnection.connection, userTcpConnection.clientConnection)
 		} else {
 			break
 		}

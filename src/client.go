@@ -84,8 +84,8 @@ func processServerMessageConnect(message string) {
 		if err != nil {
 			logError(err)
 		}
+		eventProxyConnection(local, proxy)
 		go copyIO(local, proxy)
 		go copyIO(proxy, local)
-		eventProxyConnection(local, proxy)
 	}
 }
