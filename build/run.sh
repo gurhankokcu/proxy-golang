@@ -23,7 +23,7 @@ else
 fi
 
 echo "Building executable for $APP_TYPE..."
-chmod u+x build.sh
+chmod u+x ./build.sh
 ./build.sh
 
 echo "Create config file for $APP_TYPE..."
@@ -49,8 +49,10 @@ docker rmi $DOCKER_IMAGE_NAME -f
 echo "Creating Docker network..."
 docker network create $DOCKER_NETWORK_NAME --subnet=$DOCKER_NETWORK_SUBNET
 
+cd ..
+
 echo "Building Docker image for $APP_TYPE..."
-docker build -t $DOCKER_IMAGE_NAME --build-arg=ADMIN_PORT=$ADMIN_PORT .
+docker build -f build/Dockerfile -t $DOCKER_IMAGE_NAME --build-arg=ADMIN_PORT=$ADMIN_PORT .
 
 echo "Running Docker container for $APP_TYPE..."
 docker run -d --name $DOCKER_CONTAINER_NAME --network $DOCKER_NETWORK_NAME --ip $DOCKER_CONTAINER_IP -p $ADMIN_PORT:$ADMIN_PORT $DOCKER_IMAGE_NAME
