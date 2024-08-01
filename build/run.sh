@@ -72,15 +72,15 @@ docker network create $DOCKER_NETWORK_NAME --subnet=$DOCKER_NETWORK_SUBNET
 cd ..
 
 echo "Building Docker image for server..."
-docker build -f docker/Dockerfile.server -t $DOCKER_IMAGE_NAME_SERVER --build-arg=ADMIN_PORT=$ADMIN_PORT_SERVER .
+docker build -f build/Dockerfile.server -t $DOCKER_IMAGE_NAME_SERVER --build-arg=ADMIN_PORT=$ADMIN_PORT_SERVER .
 
 echo "Building Docker image for client..."
-docker build -f docker/Dockerfile.client -t $DOCKER_IMAGE_NAME_CLIENT --build-arg=ADMIN_PORT=$ADMIN_PORT_CLIENT .
+docker build -f build/Dockerfile.client -t $DOCKER_IMAGE_NAME_CLIENT --build-arg=ADMIN_PORT=$ADMIN_PORT_CLIENT .
 
 echo "Building Docker image for local..."
-docker build -f docker/Dockerfile.local -t $DOCKER_IMAGE_NAME_LOCAL --build-arg=ADMIN_PORT=$ADMIN_PORT_LOCAL .
+docker build -f build/Dockerfile.local -t $DOCKER_IMAGE_NAME_LOCAL --build-arg=ADMIN_PORT=$ADMIN_PORT_LOCAL .
 
-cd ./docker
+cd ./build
 
 echo "Running Docker container for server..."
 docker run -d --name $DOCKER_CONTAINER_NAME_SERVER --network $DOCKER_NETWORK_NAME --ip $DOCKER_CONTAINER_IP_SERVER -p $ADMIN_PORT_SERVER:$ADMIN_PORT_SERVER $DOCKER_IMAGE_NAME_SERVER

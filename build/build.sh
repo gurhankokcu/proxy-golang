@@ -39,4 +39,4 @@ mv ./udp ../../bin/linux/udp
 env GOOS=darwin GOARCH=amd64 go build
 mv ./udp ../../bin/mac/udp
 
-cd ../../docker
+cd ../../build

@@ -100,6 +100,6 @@ func eventProxyConnection(local, proxy net.Conn) {
 	NewEvent("Proxy connection").from(local).to(proxy).broadcast()
 }
 
-func eventMessageSendingError(conn net.Conn, message string) {
-	NewEvent("Error while sending a message").append(message).to(conn).broadcast()
-}
+// func eventMessageSendingError(conn net.Conn, message string) {
+// 	NewEvent("Error while sending a message").append(message).to(conn).broadcast()
+// }
