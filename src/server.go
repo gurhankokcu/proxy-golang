@@ -166,7 +166,7 @@ func openUserTcpListener(port int) bool {
 	}
 	userTcpListener := UserTcpListener{listener: l}
 	app.userTcpListeners[strconv.Itoa(port)] = &userTcpListener
-	go listenUserTcpConnections(&userTcpListener)
+	listenUserTcpConnections(&userTcpListener)
 	return true
 }
 
@@ -175,7 +175,7 @@ func listenUserTcpConnections(userTcpListener *UserTcpListener) {
 		if conn, ok := acceptConnFromListener(userTcpListener.listener); ok {
 			userTcpConnection := UserTcpConnection{connection: conn}
 			userTcpListener.connections = append(userTcpListener.connections, &userTcpConnection)
-			openClientTcpListener(&userTcpConnection)
+			go openClientTcpListener(&userTcpConnection)
 		} else {
 			break
 		}
@@ -194,7 +194,7 @@ func openClientTcpListener(userTcpConnection *UserTcpConnection) {
 	if checkPort(localPort) && checkPort(proxyPort) {
 		requestClientConnection("tcp", localPort, proxyPort)
 	}
-	go listenClientTcpConnections(userTcpConnection)
+	listenClientTcpConnections(userTcpConnection)
 }
 
 func listenClientTcpConnections(userTcpConnection *UserTcpConnection) {
@@ -203,7 +203,6 @@ func listenClientTcpConnections(userTcpConnection *UserTcpConnection) {
 			userTcpConnection.clientConnection = conn
 			eventProxyConnection(userTcpConnection.connection, userTcpConnection.clientConnection)
 			go copyIO(userTcpConnection.connection, userTcpConnection.clientConnection)
-			go copyIO(userTcpConnection.clientConnection, userTcpConnection.connection)
 		} else {
 			break
 		}

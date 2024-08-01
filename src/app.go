@@ -104,5 +104,18 @@ func sendMessage(message string, eventFunc func(net.Conn, string)) {
 func copyIO(src, dest net.Conn) {
 	defer src.Close()
 	defer dest.Close()
-	io.Copy(src, dest)
+
+	go func() {
+		_, err := io.Copy(src, dest)
+		if err != nil {
+			eventMessageSendingError(dest, err.Error())
+		}
+	}()
+
+	_, err := io.Copy(dest, src)
+	if err != nil {
+		eventMessageSendingError(dest, err.Error())
+	}
+
+	time.Sleep(100 * time.Millisecond)
 }

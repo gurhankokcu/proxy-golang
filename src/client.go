@@ -60,7 +60,7 @@ func readFromMainConnection() {
 		if message, ok := readMessage(app.mainConnection); ok {
 			eventMessageReceivedFromServer(app.mainConnection, message)
 			processServerMessageTcpPorts(message)
-			processServerMessageConnect(message)
+			go processServerMessageConnect(message)
 		} else {
 			closeMainConnection()
 			break
@@ -85,7 +85,6 @@ func processServerMessageConnect(message string) {
 			logError(err)
 		}
 		eventProxyConnection(local, proxy)
-		go copyIO(local, proxy)
-		go copyIO(proxy, local)
+		copyIO(local, proxy)
 	}
 }
