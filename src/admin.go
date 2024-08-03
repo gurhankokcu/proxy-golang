@@ -3,7 +3,7 @@ package main
 import (
 	"crypto/subtle"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -24,7 +24,7 @@ func startWebServer() {
 	http.ListenAndServe(":"+strconv.Itoa(app.AdminPort), nil)
 }
 
-//TODO: encrypt username and password
+// TODO: encrypt username and password
 func basicAuth(w http.ResponseWriter, req *http.Request) bool {
 	username, password, ok := req.BasicAuth()
 	if !ok || subtle.ConstantTimeCompare([]byte(username), []byte(app.AdminUser)) != 1 || subtle.ConstantTimeCompare([]byte(password), []byte(app.AdminPass)) != 1 {
@@ -73,7 +73,7 @@ func handleAdminServer(w http.ResponseWriter, req *http.Request) {
 
 	switch req.Method {
 	case http.MethodPut:
-		byteValue, err := ioutil.ReadAll(req.Body)
+		byteValue, err := io.ReadAll(req.Body)
 		if err != nil {
 			errResponse(w, err.Error())
 			return
@@ -113,7 +113,7 @@ func handleAdminAdmin(w http.ResponseWriter, req *http.Request) {
 
 	switch req.Method {
 	case http.MethodPut:
-		byteValue, err := ioutil.ReadAll(req.Body)
+		byteValue, err := io.ReadAll(req.Body)
 		if err != nil {
 			errResponse(w, err.Error())
 			return
@@ -137,12 +137,12 @@ func handleAdminAdmin(w http.ResponseWriter, req *http.Request) {
 		}
 		okResponse(w)
 		time.AfterFunc(time.Second, func() {
-			os.Exit(0)
+			os.Exit(1)
 		})
 	}
 }
 
-func handleAdminPortsFunc(getPort func(string) string, addPort, openListener, removePort, closeListener func(int) bool) func(http.ResponseWriter, *http.Request) {
+func handleAdminPortsFunc(getPort func(string) string, openListener, closeListener func(int), addPort, removePort func(int) bool) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, req *http.Request) {
 		if !basicAuth(w, req) {
 			return
@@ -150,7 +150,7 @@ func handleAdminPortsFunc(getPort func(string) string, addPort, openListener, re
 
 		switch req.Method {
 		case http.MethodPost:
-			byteValue, err := ioutil.ReadAll(req.Body)
+			byteValue, err := io.ReadAll(req.Body)
 			if err != nil {
 				errResponse(w, err.Error())
 				return
@@ -165,10 +165,8 @@ func handleAdminPortsFunc(getPort func(string) string, addPort, openListener, re
 				errResponse(w, "Invalid or duplicate port "+strconv.Itoa(port))
 				return
 			}
-			if app.AppType == "server" && !openListener(port) {
-				removePort(port)
-				errResponse(w, "Cannot start listening on port "+strconv.Itoa(port))
-				return
+			if app.AppType == "server" {
+				go openListener(port)
 			}
 			if app.AppType == "client" {
 				go reloadOpenTcpPorts()
@@ -184,10 +182,8 @@ func handleAdminPortsFunc(getPort func(string) string, addPort, openListener, re
 				errResponse(w, "Port "+strconv.Itoa(port)+" not found")
 				return
 			}
-			if app.AppType == "server" && !closeListener(port) {
-				addPort(port)
-				errResponse(w, "Cannot stop listening on port "+strconv.Itoa(port))
-				return
+			if app.AppType == "server" {
+				go closeListener(port)
 			}
 			if app.AppType == "client" {
 				go reloadOpenTcpPorts()
@@ -198,11 +194,11 @@ func handleAdminPortsFunc(getPort func(string) string, addPort, openListener, re
 }
 
 func handleAdminTcpPorts(w http.ResponseWriter, req *http.Request) {
-	handleAdminPortsFunc(getTcpPortFromPath, addTcpPort, openUserTcpListener, removeTcpPort, closeUserTcpListener)(w, req)
+	handleAdminPortsFunc(getTcpPortFromPath, openUserTcpListener, closeUserTcpListener, addTcpPort, removeTcpPort)(w, req)
 }
 
 func handleAdminUdpPorts(w http.ResponseWriter, req *http.Request) {
-	handleAdminPortsFunc(getUdpPortFromPath, addUdpPort, openUserUdpListener, removeUdpPort, closeUserUdpListener)(w, req)
+	handleAdminPortsFunc(getUdpPortFromPath, openClientUdpConnection, closeClientUdpConnection, addUdpPort, removeUdpPort)(w, req)
 }
 
 func handleAdminReconnect(w http.ResponseWriter, req *http.Request) {
@@ -243,8 +239,6 @@ func handleAdminEvents(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	app.adminListeners = append(app.adminListeners, w)
-
-	eventResponse(w, "Started listening events...")
 
 	ctx := req.Context()
 	<-ctx.Done()

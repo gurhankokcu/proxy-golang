@@ -16,12 +16,7 @@ func reverseString(input string) string {
 
 func main() {
 	// Listen on UDP port 9102
-	addr := net.UDPAddr{
-		Port: 9102,
-		IP:   net.ParseIP("0.0.0.0"),
-	}
-
-	conn, err := net.ListenUDP("udp", &addr)
+	conn, err := net.ListenUDP("udp", &net.UDPAddr{Port: 9102})
 	if err != nil {
 		log.Fatal("Error starting UDP server:", err)
 	}

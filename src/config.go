@@ -3,20 +3,34 @@ package main
 import (
 	"encoding/json"
 	"flag"
-	"io/ioutil"
 	"os"
 	"sort"
 )
+
+func getAppFlags() *App {
+	var app App
+	flag.StringVar(&app.AppType, "app-type", "", "application type")
+	flag.StringVar(&app.ServerHost, "server-host", "", "server host")
+	flag.IntVar(&app.ServerPort, "server-port", 0, "server port")
+	flag.StringVar(&app.ServerSecret, "server-secret", "", "server secret")
+	flag.IntVar(&app.AdminPort, "admin-port", 0, "admin page port")
+	flag.StringVar(&app.AdminUser, "admin-user", "", "admin page username")
+	flag.StringVar(&app.AdminPass, "admin-pass", "", "admin page password")
+	flag.Parse()
+	return &app
+}
 
 func getAppConfig() *App {
 	var app App
 	byteValue, err := os.ReadFile("config.json")
 	if err != nil {
-		return nil
+		logError(err)
+		return &app
 	}
 	err = json.Unmarshal(byteValue, &app)
 	if err != nil {
-		return nil
+		logError(err)
+		return &app
 	}
 	return &app
 }
@@ -33,23 +47,10 @@ func getAppDefault() *App {
 	}
 }
 
-func getAppFlags() *App {
-	var app App
-	flag.StringVar(&app.AppType, "app-type", "", "application type")
-	flag.StringVar(&app.ServerHost, "server-host", "", "server host")
-	flag.IntVar(&app.ServerPort, "server-port", 0, "server port")
-	flag.StringVar(&app.ServerSecret, "server-secret", "", "server secret")
-	flag.IntVar(&app.AdminPort, "admin-port", 0, "admin page port")
-	flag.StringVar(&app.AdminUser, "admin-user", "", "admin page username")
-	flag.StringVar(&app.AdminPass, "admin-pass", "", "admin page password")
-	flag.Parse()
-	return &app
-}
-
 func readConfig() bool {
+	appFlags := getAppFlags()
 	appConfig := getAppConfig()
 	appDefault := getAppDefault()
-	appFlags := getAppFlags()
 
 	app.AppType = getStringValue(appFlags.AppType, appConfig.AppType, appDefault.AppType, checkAppType)
 	app.ServerHost = getStringValue(appFlags.ServerHost, appConfig.ServerHost, appDefault.ServerHost, checkServerHost)
@@ -60,9 +61,12 @@ func readConfig() bool {
 	app.AdminPass = getStringValue(appFlags.AdminPass, appConfig.AdminPass, appDefault.AdminPass, checkCredentials)
 	app.TcpPorts = getIntSliceValue(appFlags.TcpPorts, appConfig.TcpPorts, appDefault.TcpPorts, checkPort)
 	app.UdpPorts = getIntSliceValue(appFlags.UdpPorts, appConfig.UdpPorts, appDefault.UdpPorts, checkPort)
+	app.Events = make([]string, 0)
+	app.Events = appConfig.Events
 
-	app.ip = getPublicIP()
+	app.Ip = getPublicIP()
 	app.userTcpListeners = make(map[string]*UserTcpListener)
+	app.clientUdpConnections = make(map[string]*ClientUdpConnection)
 
 	return true
 }
@@ -72,7 +76,7 @@ func writeConfig() bool {
 	if err != nil {
 		return false
 	}
-	err = ioutil.WriteFile("config.json", byteValue, 0644)
+	err = os.WriteFile("config.json", byteValue, 0644)
 	return err == nil
 }
 
@@ -145,5 +149,10 @@ func removeUdpPort(port int) bool {
 		return false
 	}
 	app.UdpPorts = append(app.UdpPorts[:index], app.UdpPorts[index+1:]...)
+	return writeConfig()
+}
+
+func addEvent(message string) bool {
+	app.Events = append(app.Events, message)
 	return writeConfig()
 }

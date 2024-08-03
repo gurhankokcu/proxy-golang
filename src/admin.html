@@ -29,6 +29,7 @@
         border-radius: .5em;
         margin: .5em;
         padding: 1em;
+        max-height: 30em;
     }
 
     .col-client {
@@ -205,6 +206,9 @@
             error: showError
         })
     }
+    function scrollToBottomOfEvents() {
+        $('#events').scrollTop($('#events').text().split('\n').length * 20)
+    }
     function listenEvents() {
         var lastResponseIndex = 0
         var xhr = new XMLHttpRequest()
@@ -219,6 +223,7 @@
                     processEvent(event)
                 }
             })
+            scrollToBottomOfEvents()
         }
         xhr.onerror = function () {
             if (newAdminPort === null) {
@@ -253,6 +258,7 @@
         }
     }
     $(function () {
+        scrollToBottomOfEvents()
         listenEvents()
     })
 </script>
@@ -464,12 +470,14 @@
                     {{if .ShowReconnectButton}}
                     <td class="align-middle">
                         <button type="button" class="btn btn-sm btn-warning"
+                            data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Reconnect"
                             onclick="reconnect()"><i class="bi bi-bootstrap-reboot"></i></button>
                     </td>
                     {{end}}
                     {{if .ShowRequestPortsButton}}
                     <td class="align-middle">
                         <button id="requestPortsButton" type="button" class="btn btn-sm btn-primary"
+                            data-bs-toggle="tooltip" data-bs-placement="right" data-bs-title="Request Ports"
                             {{if .IsConnected}}style="display: inline;" {{else}}style="display: none;" {{end}}
                             onclick="requestPorts()"><i class="bi bi-bootstrap-reboot"></i></button>
                     </td>
@@ -485,7 +493,8 @@
         events
     </div>
     <div class="col-events">
-        <pre id="events"></pre>
+        <pre id="events">{{range .Events}}> {{.}}
+{{end}}</pre>
     </div>
 </div>
 <div class="row"><br /></div>

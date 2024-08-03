@@ -42,7 +42,6 @@ func acceptConnFromListener(listener net.Listener) (net.Conn, bool) {
 	conn, err := listener.Accept()
 	if err != nil {
 		logError(err)
-		time.Sleep(100 * time.Millisecond)
 		return nil, false
 	}
 	return conn, true
@@ -116,6 +115,9 @@ func processClientMessageServerSecret(conn net.Conn, message string) {
 		}
 		app.mainConnection = conn
 		eventClientConnectionAccepted(conn)
+		go closeUserListeners()
+		time.Sleep(3 * time.Second)
+		go openUserListeners()
 	}
 }
 
@@ -146,28 +148,41 @@ func closeMainListenerConnection(conn net.Conn, eventFunc func(net.Conn)) {
 // user listener
 
 func openUserListeners() {
-	for _, port := range app.TcpPorts {
-		if !openUserTcpListener(port) {
-			removeTcpPort(port)
+	for {
+		if app.IsConnected() {
+			break
 		}
+		time.Sleep(1 * time.Second)
+	}
+	for _, port := range app.TcpPorts {
+		go openUserTcpListener(port)
 	}
 	for _, port := range app.UdpPorts {
-		if !openUserUdpListener(port) {
-			removeUdpPort(port)
-		}
+		go openClientUdpConnection(port)
 	}
 }
 
-func openUserTcpListener(port int) bool {
+func closeUserListeners() {
+	for _, port := range app.TcpPorts {
+		go closeUserTcpListener(port)
+	}
+	for _, port := range app.UdpPorts {
+		go closeClientUdpConnection(port)
+	}
+}
+
+// TCP
+
+func openUserTcpListener(port int) {
 	l, err := net.Listen("tcp", ":"+strconv.Itoa(port))
 	if err != nil {
 		logError(err)
-		return false
+		removeTcpPort(port)
+		return
 	}
 	userTcpListener := UserTcpListener{listener: l}
 	app.userTcpListeners[strconv.Itoa(port)] = &userTcpListener
 	listenUserTcpConnections(&userTcpListener)
-	return true
 }
 
 func listenUserTcpConnections(userTcpListener *UserTcpListener) {
@@ -209,7 +224,7 @@ func listenClientTcpConnections(userTcpConnection *UserTcpConnection) {
 	}
 }
 
-func closeUserTcpListener(port int) bool {
+func closeUserTcpListener(port int) {
 	if userTcpListener, ok := app.userTcpListeners[strconv.Itoa(port)]; ok {
 		for _, connection := range userTcpListener.connections {
 			if connection.clientConnection != nil {
@@ -230,17 +245,73 @@ func closeUserTcpListener(port int) bool {
 		}
 		userTcpListener.listener = nil
 		delete(app.userTcpListeners, strconv.Itoa(port))
-		return true
 	} else {
 		logErrorString("tcp listener not found")
-		return false
 	}
 }
 
-func openUserUdpListener(port int) bool {
-	return true
+// UDP
+
+func openClientUdpConnection(port int) {
+	conn, err := net.ListenUDP("udp", &net.UDPAddr{Port: 0})
+	if err != nil {
+		logError(err)
+		return
+	}
+	clientUdpConnection := ClientUdpConnection{connection: conn}
+	app.clientUdpConnections[strconv.Itoa(port)] = &clientUdpConnection
+
+	proxyPort := conn.LocalAddr().(*net.UDPAddr).Port
+
+	if checkPort(port) && checkPort(proxyPort) {
+		requestClientConnection("udp", port, proxyPort)
+	}
+
+	go receiveClientUdpConnection(&clientUdpConnection)
+	listenUserUdpConnections(&clientUdpConnection, port)
 }
 
-func closeUserUdpListener(port int) bool {
-	return true
+func receiveClientUdpConnection(clientUdpConnection *ClientUdpConnection) {
+	buffer := make([]byte, 4096)
+	_, clientAddr, err := clientUdpConnection.connection.ReadFromUDP(buffer)
+	if err != nil {
+		logError(err)
+		return
+	}
+	clientUdpConnection.remoteAddr = clientAddr
+}
+
+func listenUserUdpConnections(clientUdpConnection *ClientUdpConnection, port int) {
+	conn, err := net.ListenUDP("udp", &net.UDPAddr{Port: port})
+	if err != nil {
+		logError(err)
+		return
+	}
+
+	userUdpConnection := UserUdpConnection{connection: conn}
+	clientUdpConnection.userConnections = append(clientUdpConnection.userConnections, &userUdpConnection)
+
+	eventProxyUdpConnection(userUdpConnection.connection, clientUdpConnection.connection)
+	go udpCopyIO(&userUdpConnection, clientUdpConnection)
+}
+
+func closeClientUdpConnection(port int) {
+	if clientUdpConnection, ok := app.clientUdpConnections[strconv.Itoa(port)]; ok {
+		for _, connection := range clientUdpConnection.userConnections {
+			if connection.connection != nil {
+				connection.connection.Close()
+			}
+			connection.connection = nil
+			connection.remoteAddr = nil
+		}
+		clientUdpConnection.userConnections = nil
+		if clientUdpConnection.connection != nil {
+			clientUdpConnection.connection.Close()
+		}
+		clientUdpConnection.connection = nil
+		clientUdpConnection.remoteAddr = nil
+		delete(app.clientUdpConnections, strconv.Itoa(port))
+	} else {
+		logErrorString("udp listener not found")
+	}
 }

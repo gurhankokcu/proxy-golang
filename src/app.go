@@ -10,22 +10,24 @@ import (
 )
 
 type App struct {
-	AppType      string `json:"appType"`
-	ServerHost   string `json:"serverHost"`
-	ServerPort   int    `json:"serverPort"`
-	ServerSecret string `json:"serverSecret"`
-	AdminPort    int    `json:"adminPort"`
-	AdminUser    string `json:"adminUser"`
-	AdminPass    string `json:"adminPass"`
-	TcpPorts     []int  `json:"tcpPorts"`
-	UdpPorts     []int  `json:"udpPorts"`
+	AppType      string   `json:"appType"`
+	ServerHost   string   `json:"serverHost"`
+	ServerPort   int      `json:"serverPort"`
+	ServerSecret string   `json:"serverSecret"`
+	AdminPort    int      `json:"adminPort"`
+	AdminUser    string   `json:"adminUser"`
+	AdminPass    string   `json:"adminPass"`
+	TcpPorts     []int    `json:"tcpPorts"`
+	UdpPorts     []int    `json:"udpPorts"`
+	Events       []string `json:"events"`
 
-	ip                string
-	potentialTcpPorts []int
-	adminListeners    []http.ResponseWriter
-	mainListener      net.Listener
-	mainConnection    net.Conn
-	userTcpListeners  map[string]*UserTcpListener
+	Ip                   string
+	potentialTcpPorts    []int
+	adminListeners       []http.ResponseWriter
+	mainListener         net.Listener
+	mainConnection       net.Conn
+	userTcpListeners     map[string]*UserTcpListener
+	clientUdpConnections map[string]*ClientUdpConnection
 }
 
 type UserTcpListener struct {
@@ -37,6 +39,17 @@ type UserTcpConnection struct {
 	connection       net.Conn
 	clientListener   net.Listener
 	clientConnection net.Conn
+}
+
+type ClientUdpConnection struct {
+	connection      *net.UDPConn
+	remoteAddr      *net.UDPAddr
+	userConnections []*UserUdpConnection
+}
+
+type UserUdpConnection struct {
+	connection *net.UDPConn
+	remoteAddr *net.UDPAddr
 }
 
 func (a *App) Title() string {
@@ -102,20 +115,51 @@ func sendMessage(message string, eventFunc func(net.Conn, string)) {
 }
 
 func copyIO(src, dest net.Conn) {
-	defer src.Close()
 	defer dest.Close()
+	defer src.Close()
 
 	go func() {
-		_, err := io.Copy(src, dest)
+		_, err := io.Copy(dest, src)
 		if err != nil {
-			eventMessageSendingError(dest, err.Error())
+			logError(err)
 		}
 	}()
 
-	_, err := io.Copy(dest, src)
+	_, err := io.Copy(src, dest)
 	if err != nil {
-		eventMessageSendingError(dest, err.Error())
+		logError(err)
 	}
+}
 
-	time.Sleep(100 * time.Millisecond)
+func udpCopyIO(userUdpConnection *UserUdpConnection, clientUdpConnection *ClientUdpConnection) {
+	buffer := make([]byte, 4096)
+	for {
+		n, clientAddr, err := userUdpConnection.connection.ReadFromUDP(buffer)
+		if err != nil {
+			logError(err)
+			return
+		}
+		userUdpConnection.remoteAddr = clientAddr
+
+		go func(data []byte, userUdpConnection *UserUdpConnection, clientUdpConnection *ClientUdpConnection) {
+			_, err = clientUdpConnection.connection.WriteToUDP(data, clientUdpConnection.remoteAddr)
+			if err != nil {
+				logError(err)
+				return
+			}
+
+			response := make([]byte, 4096)
+			n, _, err = clientUdpConnection.connection.ReadFromUDP(response)
+			if err != nil {
+				logError(err)
+				return
+			}
+
+			_, err = userUdpConnection.connection.WriteToUDP(response[:n], userUdpConnection.remoteAddr)
+			if err != nil {
+				logError(err)
+				return
+			}
+		}(buffer[:n], userUdpConnection, clientUdpConnection)
+	}
 }

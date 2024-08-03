@@ -1,12 +1,22 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"math/rand"
 	"net"
 	"net/http"
 	"strconv"
 )
+
+func logError(err error) {
+	logErrorString(err.Error())
+}
+
+func logErrorString(err string) {
+	fmt.Println(err)
+	eventError(err)
+}
 
 func indexOfItemInIntSlice(slice *[]int, item int) int {
 	for index, value := range *slice {

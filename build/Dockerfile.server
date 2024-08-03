@@ -2,11 +2,16 @@ FROM alpine:latest
 
 ARG ADMIN_PORT
 
+RUN apk --update \
+    add supervisor && \
+    rm -rf /var/cache/apk/*
+
 WORKDIR /app
 
-COPY ../bin/linux .
-COPY ../bin/linux/config-server.json ./config.json
+COPY ./bin/linux .
+COPY ./bin/linux/config-server.json ./config.json
+COPY ./build/supervisord-server.conf /etc/supervisord.conf
 
 EXPOSE $ADMIN_PORT
 
-CMD ["./proxy"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]

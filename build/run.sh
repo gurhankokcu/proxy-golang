@@ -29,8 +29,8 @@ cat > "../bin/linux/config-server.json" <<EOL
   "adminPort": $ADMIN_PORT_SERVER,
   "adminUser": "admin",
   "adminPass": "pass1word2",
-  "tcpPorts": [9101],
-  "udpPorts": [9102]
+  "tcpPorts": [9100, 9101],
+  "udpPorts": [9100, 9102]
 }
 EOL
 
@@ -44,8 +44,8 @@ cat > "../bin/linux/config-client.json" <<EOL
   "adminPort": $ADMIN_PORT_CLIENT,
   "adminUser": "admin",
   "adminPass": "pass1word2",
-  "tcpPorts": [9101],
-  "udpPorts": [9102]
+  "tcpPorts": [9100, 9101],
+  "udpPorts": [9100, 9102]
 }
 EOL
 

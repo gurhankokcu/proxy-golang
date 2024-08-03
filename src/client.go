@@ -6,17 +6,23 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 var clientMutex sync.Mutex
 
 func openMainConnection() {
-	conn, err := net.Dial("tcp", app.ServerHost+":"+strconv.Itoa(app.ServerPort))
-	if err != nil {
-		logError(err)
-		return
+	for {
+		conn, err := net.Dial("tcp", app.ServerHost+":"+strconv.Itoa(app.ServerPort))
+		if err != nil {
+			logError(err)
+			eventLog("Server not found, will try to reconnect in 10 seconds")
+		} else {
+			app.mainConnection = conn
+			break
+		}
+		time.Sleep(10 * time.Second)
 	}
-	app.mainConnection = conn
 	eventServerConnectionStarted(app.mainConnection)
 	sendServerSecret()
 	sendTcpPorts()
@@ -85,6 +91,13 @@ func processServerMessageConnect(message string) {
 			logError(err)
 		}
 		eventProxyConnection(local, proxy)
-		copyIO(local, proxy)
+		if network == "udp" {
+			go proxy.Write([]byte("connect"))
+			for {
+				copyIO(local, proxy)
+			}
+		} else {
+			copyIO(local, proxy)
+		}
 	}
 }
