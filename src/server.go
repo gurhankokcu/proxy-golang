@@ -115,8 +115,8 @@ func processClientMessageServerSecret(conn net.Conn, message string) {
 		}
 		app.mainConnection = conn
 		eventClientConnectionAccepted(conn)
-		go closeUserListeners()
-		time.Sleep(3 * time.Second)
+		// go closeUserListeners()
+		time.Sleep(1 * time.Second)
 		go openUserListeners()
 	}
 }
@@ -162,14 +162,14 @@ func openUserListeners() {
 	}
 }
 
-func closeUserListeners() {
-	for _, port := range app.TcpPorts {
-		go closeUserTcpListener(port)
-	}
-	for _, port := range app.UdpPorts {
-		go closeClientUdpConnection(port)
-	}
-}
+// func closeUserListeners() {
+// 	for _, port := range app.TcpPorts {
+// 		go closeUserTcpListener(port)
+// 	}
+// 	for _, port := range app.UdpPorts {
+// 		go closeClientUdpConnection(port)
+// 	}
+// }
 
 // TCP
 
@@ -267,32 +267,36 @@ func openClientUdpConnection(port int) {
 		requestClientConnection("udp", port, proxyPort)
 	}
 
-	go receiveClientUdpConnection(&clientUdpConnection)
+	receiveClientUdpConnection(&clientUdpConnection)
+	time.Sleep(100 * time.Millisecond)
 	listenUserUdpConnections(&clientUdpConnection, port)
 }
 
 func receiveClientUdpConnection(clientUdpConnection *ClientUdpConnection) {
 	buffer := make([]byte, 4096)
-	_, clientAddr, err := clientUdpConnection.connection.ReadFromUDP(buffer)
+	n, clientAddr, err := clientUdpConnection.connection.ReadFromUDP(buffer)
 	if err != nil {
 		logError(err)
 		return
 	}
 	clientUdpConnection.remoteAddr = clientAddr
+	logInfo("client udp connection: " + string(buffer[:n]) + " " + clientAddr.String())
 }
 
 func listenUserUdpConnections(clientUdpConnection *ClientUdpConnection, port int) {
+	logInfo("start listening udp connections on port " + strconv.Itoa(port))
 	conn, err := net.ListenUDP("udp", &net.UDPAddr{Port: port})
 	if err != nil {
 		logError(err)
 		return
 	}
+	logInfo("udp connection received")
 
 	userUdpConnection := UserUdpConnection{connection: conn}
 	clientUdpConnection.userConnections = append(clientUdpConnection.userConnections, &userUdpConnection)
 
 	eventProxyUdpConnection(userUdpConnection.connection, clientUdpConnection.connection)
-	go udpCopyIO(&userUdpConnection, clientUdpConnection)
+	udpCopyIO(&userUdpConnection, clientUdpConnection)
 }
 
 func closeClientUdpConnection(port int) {

@@ -44,6 +44,9 @@ func getAppDefault() *App {
 		AdminPort:    86,
 		AdminUser:    "admin",
 		AdminPass:    "password",
+		TcpPorts:     make([]int, 0),
+		UdpPorts:     make([]int, 0),
+		Events:       make([]string, 0),
 	}
 }
 
@@ -61,8 +64,10 @@ func readConfig() bool {
 	app.AdminPass = getStringValue(appFlags.AdminPass, appConfig.AdminPass, appDefault.AdminPass, checkCredentials)
 	app.TcpPorts = getIntSliceValue(appFlags.TcpPorts, appConfig.TcpPorts, appDefault.TcpPorts, checkPort)
 	app.UdpPorts = getIntSliceValue(appFlags.UdpPorts, appConfig.UdpPorts, appDefault.UdpPorts, checkPort)
-	app.Events = make([]string, 0)
 	app.Events = appConfig.Events
+	if app.Events == nil {
+		app.Events = appDefault.Events
+	}
 
 	app.Ip = getPublicIP()
 	app.userTcpListeners = make(map[string]*UserTcpListener)

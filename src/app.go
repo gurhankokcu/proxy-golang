@@ -139,27 +139,33 @@ func udpCopyIO(userUdpConnection *UserUdpConnection, clientUdpConnection *Client
 			logError(err)
 			return
 		}
+		logInfo("read from user")
 		userUdpConnection.remoteAddr = clientAddr
 
-		go func(data []byte, userUdpConnection *UserUdpConnection, clientUdpConnection *ClientUdpConnection) {
-			_, err = clientUdpConnection.connection.WriteToUDP(data, clientUdpConnection.remoteAddr)
-			if err != nil {
-				logError(err)
-				return
-			}
-
+		go func(userUdpConnection *UserUdpConnection, clientUdpConnection *ClientUdpConnection) {
 			response := make([]byte, 4096)
-			n, _, err = clientUdpConnection.connection.ReadFromUDP(response)
-			if err != nil {
-				logError(err)
-				return
+			for {
+				n, _, err = clientUdpConnection.connection.ReadFromUDP(response)
+				if err != nil {
+					logError(err)
+					return
+				}
+				logInfo("read from client")
+				_, err = userUdpConnection.connection.WriteToUDP(response[:n], userUdpConnection.remoteAddr)
+				if err != nil {
+					logError(err)
+					return
+				}
+				logInfo("sent to user")
 			}
+		}(userUdpConnection, clientUdpConnection)
 
-			_, err = userUdpConnection.connection.WriteToUDP(response[:n], userUdpConnection.remoteAddr)
-			if err != nil {
-				logError(err)
-				return
-			}
-		}(buffer[:n], userUdpConnection, clientUdpConnection)
+		_, err = clientUdpConnection.connection.WriteToUDP(buffer[:n], clientUdpConnection.remoteAddr)
+		if err != nil {
+			logError(err)
+			return
+		}
+		logInfo("sent to client")
+
 	}
 }

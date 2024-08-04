@@ -9,6 +9,10 @@ import (
 	"strconv"
 )
 
+func logInfo(text string) {
+	fmt.Println(text)
+}
+
 func logError(err error) {
 	logErrorString(err.Error())
 }
