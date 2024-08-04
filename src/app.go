@@ -22,7 +22,6 @@ type App struct {
 	Events       []string `json:"events"`
 
 	Ip                   string
-	potentialTcpPorts    []int
 	adminListeners       []http.ResponseWriter
 	mainListener         net.Listener
 	mainConnection       net.Conn
@@ -66,17 +65,6 @@ func (a *App) ShowReconnectButton() bool {
 
 func (a *App) ShowRequestPortsButton() bool {
 	return a.AppType == "server"
-}
-
-func (a *App) PotentialTcpPorts() []int {
-	ports := []int{}
-	for _, port := range a.potentialTcpPorts {
-		if indexOfItemInIntSlice(&a.TcpPorts, port) == -1 {
-			ports = append(ports, port)
-		}
-	}
-	a.potentialTcpPorts = ports
-	return a.potentialTcpPorts
 }
 
 func (a *App) IsConnected() bool {

@@ -4,13 +4,12 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
-	"net"
 	"net/http"
-	"strconv"
 )
 
 func logInfo(text string) {
 	fmt.Println(text)
+	eventLog(text)
 }
 
 func logError(err error) {
@@ -84,14 +83,6 @@ func randomString(n int) string {
 		s[i] = chars[rand.Intn(len(chars))]
 	}
 	return string(s)
-}
-
-func isTcpPortOpen(port int) bool {
-	l, err := net.Dial("tcp", "127.0.0.1:"+strconv.Itoa(port))
-	if l != nil {
-		l.Close()
-	}
-	return err == nil
 }
 
 func getPublicIP() string {

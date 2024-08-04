@@ -1,10 +1,8 @@
 package main
 
 import (
-	"encoding/json"
 	"net"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -16,16 +14,17 @@ func openMainConnection() {
 		conn, err := net.Dial("tcp", app.ServerHost+":"+strconv.Itoa(app.ServerPort))
 		if err != nil {
 			logError(err)
-			eventLog("Server not found, will try to reconnect in 10 seconds")
 		} else {
 			app.mainConnection = conn
+			logInfo("Connected to the server successfully...")
 			break
 		}
+		logInfo("Will try to reconnect in 10 seconds...")
 		time.Sleep(10 * time.Second)
 	}
 	eventServerConnectionStarted(app.mainConnection)
+	time.Sleep(100 * time.Millisecond)
 	sendServerSecret()
-	sendTcpPorts()
 	readFromMainConnection()
 }
 
@@ -47,36 +46,15 @@ func sendServerSecret() {
 	sendMessageToServer("secret=" + app.ServerSecret)
 }
 
-func sendTcpPorts() {
-	s, _ := json.Marshal(app.TcpPorts)
-	sendMessageToServer("tcpports=" + strings.Trim(string(s), "[]"))
-}
-
-func reloadOpenTcpPorts() {
-	app.potentialTcpPorts = []int{}
-	for i := 1; i < 65536; i++ {
-		if isTcpPortOpen(i) {
-			app.potentialTcpPorts = append(app.potentialTcpPorts, i)
-		}
-	}
-}
-
 func readFromMainConnection() {
 	for {
 		if message, ok := readMessage(app.mainConnection); ok {
 			eventMessageReceivedFromServer(app.mainConnection, message)
-			processServerMessageTcpPorts(message)
 			go processServerMessageConnect(message)
 		} else {
 			closeMainConnection()
 			break
 		}
-	}
-}
-
-func processServerMessageTcpPorts(message string) {
-	if message == "tcpports" {
-		sendTcpPorts()
 	}
 }
 
@@ -92,7 +70,7 @@ func processServerMessageConnect(message string) {
 		}
 		eventProxyConnection(local, proxy)
 		if network == "udp" {
-			go proxy.Write([]byte("connect"))
+			proxy.Write([]byte("connect"))
 			for {
 				copyIO(local, proxy)
 			}

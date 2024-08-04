@@ -16,7 +16,6 @@ var regexpConfigServerSecret = `^` + regexpServerSecret + `$`
 
 var regexpMessageConnection = `^connection=(tcp|udp):(` + regexpPort + `):(` + regexpPort + `)$`
 var regexpMessageServerSecret = `^secret=(` + regexpServerSecret + `)$`
-var regexpMessageTcpPorts = `^tcpports=((` + regexpPort + `,)*` + regexpPort + `)?$`
 
 var regexpPathTcpPort = `^/admin/tcpports/(` + regexpPort + `)$`
 var regexpPathUdpPort = `^/admin/udpports/(` + regexpPort + `)$`
@@ -63,10 +62,6 @@ func findRegexp(pattern string, text string) string {
 
 func getServerSecretFromMessage(message string) string {
 	return findRegexp(regexpMessageServerSecret, message)
-}
-
-func getTcpPortsFromMessage(message string) string {
-	return findRegexp(regexpMessageTcpPorts, message)
 }
 
 func getConnectionFromMessage(message string) (string, int, int, bool) {

@@ -168,9 +168,6 @@ func handleAdminPortsFunc(getPort func(string) string, openListener, closeListen
 			if app.AppType == "server" {
 				go openListener(port)
 			}
-			if app.AppType == "client" {
-				go reloadOpenTcpPorts()
-			}
 			okResponse(w)
 		case http.MethodDelete:
 			port, err := strconv.Atoi(getPort(req.URL.Path))
@@ -184,9 +181,6 @@ func handleAdminPortsFunc(getPort func(string) string, openListener, closeListen
 			}
 			if app.AppType == "server" {
 				go closeListener(port)
-			}
-			if app.AppType == "client" {
-				go reloadOpenTcpPorts()
 			}
 			okResponse(w)
 		}

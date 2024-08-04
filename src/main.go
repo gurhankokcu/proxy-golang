@@ -12,7 +12,6 @@ func main() {
 		go openMainListener()
 	case "client":
 		go openMainConnection()
-		go reloadOpenTcpPorts()
 	}
 	startWebServer()
 }

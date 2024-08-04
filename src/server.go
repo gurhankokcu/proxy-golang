@@ -3,7 +3,6 @@ package main
 import (
 	"net"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -88,7 +87,6 @@ func handleMainListenerConnection(conn net.Conn) {
 		if message, ok := readMessage(conn); ok {
 			eventMessageReceivedFromClient(conn, message)
 			processClientMessageServerSecret(conn, message)
-			processClientMessageTcpPorts(conn, message)
 		} else {
 			isMainConnection := conn == app.mainConnection
 			closeMainListenerConnection(conn, eventClientConnectionEnded)
@@ -118,22 +116,6 @@ func processClientMessageServerSecret(conn net.Conn, message string) {
 		// go closeUserListeners()
 		time.Sleep(1 * time.Second)
 		go openUserListeners()
-	}
-}
-
-func processClientMessageTcpPorts(conn net.Conn, message string) {
-	if conn != app.mainConnection {
-		return
-	}
-	if tcpPorts := getTcpPortsFromMessage(message); tcpPorts != "" {
-		app.potentialTcpPorts = []int{}
-		portsString := strings.Split(tcpPorts, ",")
-		for _, portString := range portsString {
-			port, err := strconv.Atoi(portString)
-			if err == nil && checkPort(port) {
-				app.potentialTcpPorts = append(app.potentialTcpPorts, port)
-			}
-		}
 	}
 }
 
